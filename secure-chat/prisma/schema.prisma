@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  passwordHash  String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Clés Signal Protocol
+  identityKey   SignalKeys?
+  preKeys       PreKey[]
+  signedPreKey  SignedPreKey?
+
+  // Relations pour les messages
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+
+  // Relations pour les contacts
+  contacts         Contact[]  @relation("UserContacts")
+  contactOf        Contact[]  @relation("ContactOf")
+}
+
+model SignalKeys {
+  id          String @id @default(cuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id])
+  
+  publicKey   String
+  privateKey  String // Stocké de manière sécurisée
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PreKey {
+  id        String @id @default(cuid())
+  keyId     Int
+  publicKey String
+  privateKey String // Stocké de manière sécurisée
+  
+  userId    String
+  user      User   @relation(fields: [userId], references: [id])
+  used      Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+}
+
+model SignedPreKey {
+  id        String @id @default(cuid())
+  keyId     Int
+  publicKey String
+  privateKey String // Stocké de manière sécurisée
+  signature String
+  
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String   // Message chiffré
+  senderId    String
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  read        Boolean  @default(false)
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("UserContacts", fields: [userId], references: [id])
+  contactId   String
+  contact     User     @relation("ContactOf", fields: [contactId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, contactId])
+}
+
